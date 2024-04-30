@@ -1,0 +1,391 @@
+nazwa_pliku:"456412.mongodb"
+autorka:"Katarzyna Pierzyńska"
+
+Pytanie — 01 — 
+
+Napisz zapytanie,
+które poda wszystkie różne typy produktów (ang. products) inwestycyjnych spośród dokumentów z kolekcji accounts bazy sample_analytics,
+dla których wartość klucza limit wynosi 5000.
+
+Odpowiedź — 01 —
+
+use('sample_analytics')
+
+db.accounts.aggregate([
+    {
+        $match:{
+            "limit":5000
+        }
+    },
+    {
+        $group:{
+            _id:null,
+            uniqueProducts:{
+                $addToSet:"$products"
+            }
+        }
+    },
+    {
+        $unwind:"$uniqueProducts"
+    },
+    {
+        $project:{
+            _id:0,
+            products:"$uniqueProducts"
+        }
+    }
+])
+
+Pytanie — 02 — 
+
+Korzystając z mechanizmu agregacji,
+podaj krotność dokumentów z kolekcji accounts bazy sample_analytics,
+zgrupowanych według produktów (ang. products) inwestycyjnych. Uzyskane wyniki należy posortować,
+ze względu na wartość klucza _id w porządku rosnącym.
+
+Odpowiedź — 02 —
+
+use('sample_analytics')
+
+db.accounts.aggregate([
+    {
+        $unwind:"$products"
+    },
+    {
+        $group:{
+            _id:"$products",
+            "liczba dokumentów":{
+                $sum:1
+            }
+        }
+    },
+    {
+        $sort:{
+            "_id":1
+        }
+    }
+])
+
+Pytanie — 03 — 
+
+Wyszukaj wszystkie dokumenty z kolekcji customers bazy sample_analytics,
+w których tablica accounts zawiera dokładnie pięć elementów oraz posiada co najmniej jeden element o wartości z przedziału domkniętego[
+    100000,
+    200000
+]. Uzyskany wynik należy posortować w porządku rosnących wartości klucza name. Zapytanie powinno zwrócić 37 dokumentów,
+zawierających tylko wartości kluczy name oraz accounts.
+
+Odpowiedź — 03 —
+
+use('sample_analytics')
+
+db.customers.aggregate([
+    {
+        $match:{
+            $expr:{
+                $and:[
+                    {
+                        $eq:[
+                            {
+                                $size:"$accounts"
+                            },
+                            5
+                        ]
+                    },
+                    {
+                        $gt:[
+                            {
+                                $size:{
+                                    $filter:{
+                                        input:"$accounts",
+                                        as:"account",
+                                        cond:{
+                                            $and:[
+                                                {
+                                                    $gte:[
+                                                        "$$account",
+                                                        100000
+                                                    ]
+                                                },
+                                                {
+                                                    $lte:[
+                                                        "$$account",
+                                                        200000
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            0
+                        ]
+                    },
+                    
+                ]
+            }
+        }
+    },
+    {
+        $project:{
+            _id:0,
+            name:1,
+            accounts:1
+        }
+    },
+    {
+        $sort:{
+            name:1
+        }
+    }
+])
+
+Pytanie — 04 — 
+
+Wyszukaj wszystkie dokumenty z kolekcji customers bazy sample_analytics klientów urodzonych w latach 1990-1991,
+czyli pomiędzy datami ISODate("1990-01-01") a ISODate("1991-12-31"). Następnie wybierz szósty dokument z tej posortowanej względem rosnących dat oraz klucza name tablicy wyników. Dokumentów spełniających powyższe kryteria jest 39. Kwerenda powinna zwrócić tylko wartości kluczy name oraz birthdate tego wybranego szóstego dokumentu.
+
+Odpowiedź — 04 —
+
+use('sample_analytics')
+
+db.customers.aggregate([
+    {
+        $match:{
+            birthdate:{
+                $gt:ISODate("1990-01-01"),
+                $lt:ISODate("1991-12-31")
+            }
+        }
+    },
+    {
+        $sort:{
+            birthdate:1,
+            name:1
+        }
+    },
+    {
+        $skip:5
+    },
+    {
+        $limit:1
+    },
+    {
+        $project:{
+            _id:0,
+            "name":1,
+            "birthdate":1
+        }
+    }
+])
+
+Pytanie — 05 — 
+
+Napisz zapytanie,
+które wyszuka wszystkie dokumenty z kolekcji customers bazy sample_analytics dotyczące osób o imieniu Natalie,
+posiadających konto poczty elektronicznej na domenie yahoo.com. Kwerenda powinna zwrócić tylko klucze username,
+name oraz email.
+
+Odpowiedź — 05 —
+
+use('sample_analytics')
+
+db.customers.find({
+    "name":{
+        $regex:/^Natalie/i
+    },
+    "email":{
+        $regex:/@yahoo\.com$/i
+    }
+},
+{
+    "_id":0,
+    "username":1,
+    "name":1,
+    "email":1
+})
+
+Pytanie — 06 — 
+
+Korzystając z mechanizmu agregacji dla grupowania z _id:null,
+zsumuj wartości kluczy transaction_count dla wszystkich dokumentów z kolekcji transactions bazy sample_analytics. Dodatkowo zlicz ilość wszystkich dokumentów z tej kolekcji.
+
+Odpowiedź — 06 —
+
+use('sample_analytics')
+
+db.transactions.aggregate([
+    {
+        $group:{
+            _id:null,
+            "transaction_count_total":{
+                $sum:"$transaction_count"
+            },
+            "documents_count":{
+                $count:{
+                    
+                }
+            }
+        }
+    }
+])
+
+Pytanie — 07 — 
+
+Znajdź wszystkie dokumenty z kolekcji sales bazy sample_supplies dotyczące klientek ze sklepu w Londynie,
+które zakupiły (na tablicy z zakupami items) co najmniej jeden komputer przenośny (ang. laptop) oraz co najmniej jeden plecak (ang. backpack). Zapytanie powinno zwrócić dokumenty z wartościami kluczy age oraz satisfaction,
+posortowane według malejących wartości kluczy age oraz satisfaction. Dokumentów spełniających powyższe kryteria jest 108. Kwerenda powinna zwrócić dziesięć pierwszych dokumentów (z obiektu kursora).
+
+Odpowiedź — 07 —
+
+use('sample_supplies')
+
+db.sales.find({
+    "storeLocation":"London",
+    "customer.gender":"F",
+    "items.name":{
+        $all:[
+            "laptop",
+            "backpack"
+        ]
+    }
+},
+{
+    _id:0,
+    "customer.age":1,
+    "customer.satisfaction":1
+}).sort({
+    "customer.age":-1,
+    "customer.satisfaction":-1
+}).limit(10)
+
+Pytanie — 08 — 
+
+Korzystając z mechanizmu agregacji,
+znajdź produkty z etykietą (ang. tag)"school"lub z etykietą"electronics",
+zamieszczone w tablicy zakupionych przedmiotów (ang. items) w dokumentach z kolekcji sales bazy sample_supplies.
+
+Odpowiedź — 08 —
+
+use('sample_supplies')
+
+db.sales.aggregate([
+    {
+        $match:{
+            "items.tags":{
+                $in:[
+                    "school",
+                    "electronics"
+                ]
+            }
+        }
+    },
+    {
+        $unwind:"$items"
+    },
+    {
+        $match:{
+            "items.tags":{
+                $in:[
+                    "school",
+                    "electronics"
+                ]
+            }
+        }
+    },
+    {
+        $group:{
+            _id:"$items.name"
+        }
+    },
+    {
+        $project:{
+            "items.name":1,
+            "items.tags":1
+        }
+    }
+])
+
+Pytanie — 09 — 
+
+Zadanie dotyczy dokumentów z kolekcji restaurants bazy sample_restaurants. Polega ono na wyszukaniu wszystkich różnych sztuk kulinarnych (ang. cuisine) uprawianych przez restauracje w obszarze administracyjnym (ang. borough) Manhattan,
+które otrzymały wynik (ang. score) równy 0,
+przy czym żaden uzyskany przez nie wynik nie był większy od 2 oraz nie był mniejszy niż 0.
+
+Odpowiedź — 09 —
+
+use('sample_restaurants')
+
+db.restaurants.distinct("cuisine",
+{
+    "borough":"Manhattan",
+    "grades":{
+        $elemMatch:{
+            "score":{
+                $eq:0
+            }
+        }
+    },
+    $and:[
+        {
+            "grades.score":{
+                $not:{
+                    $gt:2
+                }
+            }
+        },
+        {
+            "grades.score":{
+                $not:{
+                    $lt:0
+                }
+            }
+        }
+    ]
+},
+{
+    "cuisine":1,
+    "_id":0
+})
+
+Pytanie — 10 — 
+
+Należy napisać zapytanie przeszukujące wszystkie dokumenty z kolekcji restaurants bazy sample_restaurants dotyczące restauracji w obszarze administracyjnym (ang. borough) Manhattan,
+które ostatnio otrzymały ocenę (ang. grade) A,
+B lub C. Najbardziej aktualne rekordy tablicy z ocenami (ang. grades) są umieszczone na pierwszym miejscu.
+
+Kwerenda powinna zwrócić dokumenty z informacjami dotyczącymi uprawianej sztuki kulinarnej (ang. cuisine) oraz uzyskanych ostatnich ocenach (ang. grades). Wynik należy posortować najpierw w porządku od najbardziej aktualnych rekordów,
+następnie w porządku od wyższej oceny (ang. score) a na końcu w porządku alfabetycznym informacji dotyczącej uprawianej sztuki kulinarnej (ang. cuisine). Kwerenda powinna zwrócić 10 pierwszych dokumentów.
+
+Odpowiedź — 10 —
+
+use('sample_restaurants')
+
+db.restaurants.find({
+    "borough":"Manhattan",
+    "grades.0":{
+        $exists:true
+    },
+    $or:[
+        {
+            "grades.0.grade":"A"
+        },
+        {
+            "grades.0.grade":"B"
+        },
+        {
+            "grades.0.grade":"C"
+        }
+    ]
+},
+{
+    _id:0,
+    "cuisine":1,
+    "grades":{
+        $slice:1
+    }
+}).sort({
+    "grades.0.date":-1,
+    "grades.0.score":-1,
+    "cuisine":1
+}).limit(10).pretty()
